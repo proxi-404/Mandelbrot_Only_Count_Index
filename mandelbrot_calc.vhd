@@ -40,7 +40,6 @@ entity mandelbrot_calc is
 
         new_fig : in std_logic := '1';
 
-        count_in : in unsigned(Countmax downto 0) := (others => '0');
         X_in : in signed(Mbits -1 downto 0) := (others => '0');
         Y_in : in signed (Mbits -1 downto 0) := (others => '0');
 

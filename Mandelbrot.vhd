@@ -76,7 +76,6 @@ architecture Behavioral of Mandelbrot is
     signal px_next_in, py_next_in : unsigned(10 downto 0) := (others => '0');
 BEGIN
 
-
     mandelbrot_calc : entity work.mandelbrot_calc
         generic map (
             Mbits => MBits,
@@ -92,8 +91,7 @@ BEGIN
             clk => clk,
 
             new_fig => new_fig,
-
-            count_in => count_in,
+            
             X_in => X_next,
             Y_in => Y_next,
 
@@ -104,7 +102,7 @@ BEGIN
             PX_next => px_next,
 
             index_out => index,
-            count_out => count_out,
+            count_out => reg_count_in,
             pixel_done => pixel_done
         );
 
@@ -147,37 +145,37 @@ BEGIN
     p_Mandelbrot_next_pixel : process(clk)
     begin
         if rising_edge(clk) then
-            if reset = '1' then
-                new_fig <= '1';
+        --if reset = '1' then
+       --     new_fig <= '1';
+        --else
+            if new_fig = '1' then
+                new_fig <= '0';
+                PX_next <= (others => '0');
+                X_next <= X_ref;
+                Y_next <= Y_ref;
             else
-                if new_fig = '1' then
-                    new_fig <= '0';
-                    PX_next <= (others => '0');
-                    X_next <= X_ref;
-                    Y_next <= Y_ref;
-                else
-                    if pixel_done='1' then
-                        if TO_INTEGER(PX_next)=(M_X_Pixels-1) then           -- X overflow
-                            PX_next <= (others => '0');
-                            X_next  <= X_ref;
-                            if TO_INTEGER(PY_next)=(M_Y_Pixels-1) then         -- Y overflow
-                                PY_next <= (others => '0');
-                                Y_next <= Y_ref;
-                                new_fig <= '1';
-                            else
-                                PY_next <= PY_next + 1;                        -- Y normal
-                                Y_next <= Y_next - Pixel_Increment_final;
-                                new_fig <= '0';
-                            end if;
+                if pixel_done='1' then
+                    if TO_INTEGER(PX_next)=(M_X_Pixels-1) then           -- X overflow
+                        PX_next <= (others => '0');
+                        X_next  <= X_ref;
+                        if TO_INTEGER(PY_next)=(M_Y_Pixels-1) then         -- Y overflow
+                            PY_next <= (others => '0');
+                            Y_next <= Y_ref;
+                            new_fig <= '1';
                         else
-                            PX_next <= PX_next + 1;                          -- X normal
-                            X_next <= X_next + Pixel_Increment_final;
+                            PY_next <= PY_next + 1;                        -- Y normal
+                            Y_next <= Y_next - Pixel_Increment_final;
                             new_fig <= '0';
                         end if;
+                    else
+                        PX_next <= PX_next + 1;                          -- X normal
+                        X_next <= X_next + Pixel_Increment_final;
+                        new_fig <= '0';
                     end if;
                 end if;
             end if;
         end if;
+        --end if;
     end process;
 
     ------------------------------------------------------------------------------------
@@ -185,15 +183,16 @@ BEGIN
     p_test_automatic_zoom : process (clk)
     begin
         if rising_edge(clk) then
+
             if reset = '1' then
-                Pixel_increment_next <= (others => '0');
+                --Pixel_increment_next <= (others => '0');
                 X_ref <= (MBits-1 => '1',MBits-3 => '0',MBits-4 => '0',others => '1');
                 Y_ref <= (MBits-1 => '0',MBits-3 => '1',MBits-9 => '1',others => '0');
             else
                 if new_fig = '1' then
 
                         --pixel_increment_next <= Pixel_Increment_final - Pixel_Increment_final srl 8;
-                        X_ref <= X_ref + (Pixel_Increment_final sll 4); --- ((pixel_increment_next) sll 4);
+                        X_ref <= X_ref + ((Pixel_Increment_final sll 3) + (Pixel_increment_final sll 2)); --- ((pixel_increment_next) sll 4);
 
                         Y_ref <= Y_ref - ((Pixel_Increment_final sll 3) +(Pixel_Increment_final sll 2)); --- ((pixel_increment_next sll 3) + (pixel_increment_next sll 2));
 
@@ -212,15 +211,13 @@ BEGIN
                 if pixel_done='1' then
                     if TO_INTEGER(PX_next)=(M_X_Pixels-1) then
                         if TO_INTEGER(PY_next)=(M_Y_Pixels-1) then
-
                                 Pixel_Increment <= Pixel_Increment_final - (Pixel_Increment_final srl 8);
-
                         end if;
                     end if;
                 end if;
             end if;
         end if;
-    end process;
+    end process;;
 
     p_map_output : process(clk)
     begin
