@@ -16,12 +16,14 @@ use std.env.stop;
 
 entity Mandelbrot is
     generic(
-        CountMax : integer := 8
+        CountMax : integer := 8;
+        M_X_Pixels: integer := 256;
+        M_Y_Pixels: integer := 192
     );
     port (
          clk       : in  std_logic;
          reset : in std_logic;
-         index_output : out integer := 0;
+         index_output : out integer range 0 to (M_X_Pixels*M_Y_Pixels)-1 := 0;
          count_output: out std_logic_vector (CountMax downto 0) := (others => '0')
         );
 end Mandelbrot;
@@ -29,28 +31,10 @@ end Mandelbrot;
 architecture Behavioral of Mandelbrot is
 
     constant MBits : integer := 72;
-    constant M_X_Pixels : integer := 256;
+
     constant log_M_X_Pixels : integer := 8;
 
-    constant M_Y_Pixels : integer := 192;
 
-
-
-    signal v_pos                    : integer range 0 to 1023;
-    signal h_pos                    : integer range 0 to 1023;
-    signal h_ref, v_ref             : integer range 0 to 1023 := 32;
-
-    signal r_in, g_in, b_in      : std_logic_vector(3 downto 0) := (others => '0');
-    signal visible_in            : std_logic := '0';
-    signal old_visible_in        : std_logic := '0';
-    signal H_in, V_in            : std_logic := '0';
-    signal r_out, g_out, b_out   : std_logic_vector(3 downto 0) := (others => '0');
-    signal visible_out, old_H_in : std_logic := '0';
-    signal H_out, V_out          : std_logic := '0';
-
-    signal RADR    					    : integer range 0 to (M_X_Pixels * M_Y_Pixels)-1 := 0;
-    signal BMP_pixel                : std_logic_vector(23 downto 0) := (others => '0');
-    signal BMP_INPUT 					 : std_logic_vector (CountMax downto 0) := (others => '0');
 
     signal px_next, py_next : unsigned(10 downto 0) := (others => '0');
     signal X_out : signed(MBits-1 downto 0) := (others => '0');
@@ -62,22 +46,6 @@ architecture Behavioral of Mandelbrot is
     signal X_ref : signed(MBits-1 downto 0) := (MBits-1 => '1',MBits-3 => '0',MBits-4 => '0',others => '1');
     signal Y_ref : signed(MBits-1 downto 0) := (MBits-1 => '0',MBits-3 => '1',MBits-9 => '1',others => '0');
 
-    constant multil_size : integer := MBits;
-
-    signal multil_in_X : signed (multil_size-1 downto 0) := (others => '0');
-    signal multil_in_Y : signed (multil_size-1 downto 0) := (others => '0');
-    signal multi2_in_X : signed (multil_size-1 downto 0) := (others => '0');
-    signal multi2_in_Y : signed (multil_size-1 downto 0) := (others => '0');
-
-    signal multi1_result : signed (2*multil_size-1 downto 0) := (others => '0');
-    signal multi2_result : signed (2*multil_size-1 downto 0) := (others => '0');
-    signal multi3_result : signed (2*multil_size-1 downto 0) := (others => '0');
-
-    signal multi1_result_tmp : unsigned (2*multil_size-1 downto 0) := (others => '0');
-    signal multi2_result_tmp : unsigned (2*multil_size-1 downto 0) := (others => '0');
-    signal multi3_result_tmp : unsigned (2*multil_size-1 downto 0) := (others => '0');
-
-
     --constants for multiplication
     constant calc_stages : integer := 2;-- stages is the number of until you reach a number smaller than 18 e.g. 72 -> 36 -> 18 => results in 2 stages 
     constant calc_num_reg : integer := calc_stages * 11 + 1; -- num of stages * 11 + 1 
@@ -85,43 +53,13 @@ architecture Behavioral of Mandelbrot is
 
     constant MultiplierDelay : integer := calc_num_reg;
     constant SizeOfTm : integer := MultiplierDelay + 4;
-    constant init_ref : integer := 2;
 
-    type array_count_type is array (integer range <>) of unsigned(CountMax downto 0);
-    signal array_count: array_count_type(0 to SizeOfTm-1) := (others => (others => '0'));
-
-
-    type array_pixel_type is array (integer range <>) of signed(MBits-1 downto 0);
-    signal array_pixel_X  : array_pixel_type(0 to SizeOfTm-1) := (others => (others => '0'));
-    signal array_pixel_Y  : array_pixel_type(0 to SizeOfTm-1) := (others => (others => '0'));
-    signal array_pixel_X0 : array_pixel_type(0 to SizeOfTm-1) := (others => (others => '0'));
-    signal array_pixel_Y0 : array_pixel_type(0 to SizeOfTm-1) := (others => (others => '0'));
-
-    signal array_inp : integer range 0 to SizeOfTm-1 := 0;
-    signal array_ref : integer range 0 to SizeOfTm-1 := init_ref;
-    signal array_tmp : integer range 0 to SizeOfTm-1 := 0;
-    signal array_tmp0 : integer range 0 to SizeOfTm-1 := 0;
-    signal array_ref_final : integer range 0 to SizeOfTm-1 := 0;
-    signal free 	  : integer range 0 to SizeOfTm-1 := 0;
-
-    type array_BMP_type is array (integer range <>) of integer range 0 to (M_X_Pixels*M_Y_Pixels)-1;
-    signal array_BMP   : array_BMP_type(0 to SizeOfTm-1);
     signal new_fig     : std_logic := '1';
-
-    type BMP_type is array (integer range <>) of std_logic_vector(CountMax downto 0);
-    type BMP_access is access BMP_type;
-    signal BMP : BMP_type(0 to (M_X_Pixels*M_Y_Pixels)-1) := (others => (others => '0'));
-
+    
     -------------------------------------------------------------
-    signal reg_count_in : STD_LOGIC_Vector(CountMax downto 0) := (others => '0');
+    signal count_out : STD_LOGIC_Vector(CountMax downto 0) := (others => '0');
     signal index        : integer range 0 to (M_X_Pixels*M_Y_Pixels)-1;
 
-    signal INPUT_DUL_1	 : std_logic_vector (CountMax downto 0) := (others => '0');
-    signal INPUT_DUL_2	 : std_logic_vector (CountMax downto 0) := (others => '0');
-    signal INPUT_DUL_3	 : std_logic_vector (CountMax downto 0) := (others => '0');
-    signal INPUT_DUL_4	 : std_logic_vector (CountMax downto 0) := (others => '0');
-    signal INPUT_DUL_5	 : std_logic_vector (CountMax downto 0) := (others => '0');
-    signal INPUT_DUL_6	 : std_logic_vector (CountMax downto 0) := (others => '0');
     signal Pixel_Increment_1 : signed(MBits-1 downto 0) := (others => '0');
     signal Pixel_Increment_2 : signed(MBits-1 downto 0) := (others => '0');
     signal Pixel_Increment_3 : signed(MBits-1 downto 0) := (others => '0');
@@ -132,10 +70,9 @@ architecture Behavioral of Mandelbrot is
     signal sign_bit_reg : std_logic_vector (0 to Multiplierdelay -1);
     ---------------------------------------------------------------
 
-
     signal X_in, X0_in :  signed(Mbits -1 downto 0) := (others => '0');
     signal Y_in, Y0_in :  signed (Mbits -1 downto 0) := (others => '0');
-    signal count_in, count_out : unsigned (countmax downto 0) := (others => '0');
+    signal count_in: unsigned (countmax downto 0) := (others => '0');
     signal px_next_in, py_next_in : unsigned(10 downto 0) := (others => '0');
 BEGIN
 
@@ -167,7 +104,7 @@ BEGIN
             PX_next => px_next,
 
             index_out => index,
-            count_out => reg_count_in,
+            count_out => count_out,
             pixel_done => pixel_done
         );
 
@@ -291,7 +228,7 @@ BEGIN
     begin
         if rising_edge(clk) then
             index_output <= index;
-            count_output <= reg_count_in;
+            count_output <= count_out;
         end if;
     end process;
 
