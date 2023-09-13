@@ -18,13 +18,11 @@ entity Mandelbrot is
     generic(
         CountMax : integer := 8
     );
-    port (pxl_clk           : in  std_logic;
+    port (
          clk       : in  std_logic;
          reset : in std_logic;
          index_output : out integer := 0;
-         count_output: out std_logic_vector (CountMax downto 0) := (others => '0');
-         BtnBar        : IN  std_logic_vector ( 4 DOWNTO 0 );
-         SW : in std_logic_vector(7 downto 0)
+         count_output: out std_logic_vector (CountMax downto 0) := (others => '0')
         );
 end Mandelbrot;
 
@@ -252,22 +250,18 @@ BEGIN
     p_test_automatic_zoom : process (clk)
     begin
         if rising_edge(clk) then
-
             if reset = '1' then
                 Pixel_increment_next <= (others => '0');
                 X_ref <= (MBits-1 => '1',MBits-3 => '0',MBits-4 => '0',others => '1');
                 Y_ref <= (MBits-1 => '0',MBits-3 => '1',MBits-9 => '1',others => '0');
             else
                 if new_fig = '1' then
-                    if SW(5) = '1' then
-                        --Pixel_Increment <= Pixel_Increment_final - (Pixel_Increment_final srl 1);
-                        --Pixel_Increment_next <= pixel_increment_final - pixel_increment_final srl 16;
+
                         pixel_increment_next <= Pixel_Increment_final - Pixel_Increment_final srl 8;
-                        --X_ref <= X_ref + (Pixel_Increment_final sll 1) - ((pixel_increment_next) sll 1);
                         X_ref <= X_ref + (Pixel_Increment_final sll 4) - ((pixel_increment_next) sll 4);
-                        --Y_ref <= Y_ref - ((Pixel_Increment_final sll 2) +(Pixel_Increment_final sll 1)) - ((pixel_increment_next sll 2) + (pixel_increment_next sll 1));
+
                         Y_ref <= Y_ref - ((Pixel_Increment_final sll 3) +(Pixel_Increment_final sll 2)) - ((pixel_increment_next sll 3) + (pixel_increment_next sll 2));
-                    end if;
+
                 end if;
             end if;
         end if;
@@ -283,18 +277,15 @@ BEGIN
                 if pixel_done='1' then
                     if TO_INTEGER(PX_next)=(M_X_Pixels-1) then
                         if TO_INTEGER(PY_next)=(M_Y_Pixels-1) then
-                            if SW(5) = '1' then
+
                                 Pixel_Increment <= Pixel_Increment_final - (Pixel_Increment_final srl 8);
-                            end if;
+
                         end if;
                     end if;
                 end if;
             end if;
         end if;
     end process;
-
-
-
 
     p_map_output : process(clk)
     begin
@@ -303,6 +294,5 @@ BEGIN
             count_output <= reg_count_in;
         end if;
     end process;
-
 
 end Behavioral;
