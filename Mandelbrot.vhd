@@ -149,8 +149,6 @@ BEGIN
         if rising_edge(clk) then
             if reset = '1' then
                 new_fig <= '1';
-                X_ref <= (MBits-1 => '1',MBits-3 => '0',MBits-4 => '0',others => '1');
-                Y_ref <= (MBits-1 => '0',MBits-3 => '1',MBits-9 => '1',others => '0');
             else
                 if new_fig = '1' then
                     new_fig <= '0';
@@ -194,10 +192,10 @@ BEGIN
             else
                 if new_fig = '1' then
 
-                        pixel_increment_next <= Pixel_Increment_final - Pixel_Increment_final srl 8;
-                        X_ref <= X_ref + (Pixel_Increment_final sll 4) - ((pixel_increment_next) sll 4);
+                        --pixel_increment_next <= Pixel_Increment_final - Pixel_Increment_final srl 8;
+                        X_ref <= X_ref + (Pixel_Increment_final sll 4); --- ((pixel_increment_next) sll 4);
 
-                        Y_ref <= Y_ref - ((Pixel_Increment_final sll 3) +(Pixel_Increment_final sll 2)) - ((pixel_increment_next sll 3) + (pixel_increment_next sll 2));
+                        Y_ref <= Y_ref - ((Pixel_Increment_final sll 3) +(Pixel_Increment_final sll 2)); --- ((pixel_increment_next sll 3) + (pixel_increment_next sll 2));
 
                 end if;
             end if;
