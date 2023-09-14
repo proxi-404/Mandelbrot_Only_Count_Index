@@ -22,7 +22,12 @@ entity Mandelbrot is
     );
     port (
          clk       : in  std_logic;
-         reset : in std_logic;
+         reset : in std_logic; 
+         zoom_en : in std_logic := '0';
+         
+         move_left, move_right : in std_logic := '0';
+         
+         move_up, move_down : in std_logic := '0';
          index_output : out integer range 0 to (M_X_Pixels*M_Y_Pixels)-1 := 0;
          count_output: out std_logic_vector (CountMax downto 0) := (others => '0')
         );
@@ -72,7 +77,6 @@ architecture Behavioral of Mandelbrot is
 
     signal X_in, X0_in :  signed(Mbits -1 downto 0) := (others => '0');
     signal Y_in, Y0_in :  signed (Mbits -1 downto 0) := (others => '0');
-    signal count_in: unsigned (countmax downto 0) := (others => '0');
     signal px_next_in, py_next_in : unsigned(10 downto 0) := (others => '0');
 BEGIN
 
@@ -102,7 +106,7 @@ BEGIN
             PX_next => px_next,
 
             index_out => index,
-            count_out => reg_count_in,
+            count_out => count_out,
             pixel_done => pixel_done
         );
 
@@ -145,9 +149,6 @@ BEGIN
     p_Mandelbrot_next_pixel : process(clk)
     begin
         if rising_edge(clk) then
-        --if reset = '1' then
-       --     new_fig <= '1';
-        --else
             if new_fig = '1' then
                 new_fig <= '0';
                 PX_next <= (others => '0');
@@ -175,7 +176,6 @@ BEGIN
                 end if;
             end if;
         end if;
-        --end if;
     end process;
 
     ------------------------------------------------------------------------------------
@@ -185,17 +185,24 @@ BEGIN
         if rising_edge(clk) then
 
             if reset = '1' then
-                --Pixel_increment_next <= (others => '0');
                 X_ref <= (MBits-1 => '1',MBits-3 => '0',MBits-4 => '0',others => '1');
                 Y_ref <= (MBits-1 => '0',MBits-3 => '1',MBits-9 => '1',others => '0');
             else
                 if new_fig = '1' then
+                    
+                    --Moving along X Axis
+                    if move_left = '1' then
+                        X_ref <= X_ref - (Pixel_increment sll 1);
+                    elsif move_right = '1' then 
+                        X_ref <= X_ref + (Pixel_Increment sll 1);                        
+                    end if;
+                    --moving along Y Axis                             
+                    if move_down = '1' then
+                        Y_ref <= Y_ref - (Pixel_increment sll 1); 
+                    elsif move_up = '1' then
+                        Y_ref <= Y_ref + (Pixel_increment sll 1); 
 
-                        --pixel_increment_next <= Pixel_Increment_final - Pixel_Increment_final srl 8;
-                        X_ref <= X_ref + ((Pixel_Increment_final sll 3) + (Pixel_increment_final sll 2)); --- ((pixel_increment_next) sll 4);
-
-                        Y_ref <= Y_ref - ((Pixel_Increment_final sll 3) +(Pixel_Increment_final sll 2)); --- ((pixel_increment_next sll 3) + (pixel_increment_next sll 2));
-
+                    end if;
                 end if;
             end if;
         end if;
@@ -211,13 +218,15 @@ BEGIN
                 if pixel_done='1' then
                     if TO_INTEGER(PX_next)=(M_X_Pixels-1) then
                         if TO_INTEGER(PY_next)=(M_Y_Pixels-1) then
+                            if zoom_en = '1' then
                                 Pixel_Increment <= Pixel_Increment_final - (Pixel_Increment_final srl 8);
+                        end if;
                         end if;
                     end if;
                 end if;
             end if;
         end if;
-    end process;;
+    end process;
 
     p_map_output : process(clk)
     begin
